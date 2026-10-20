@@ -182,7 +182,7 @@ Authorization: Bearer <token_simulasi>
 
 ## 👥 Tim Penyusun (Kelompok 2 / Kelas F)
 
-* **Ade Rizqy Maulana**
+* **Asep Deri Dermawan**
 
 * **M. Haekal Al-Ghazy**
 
