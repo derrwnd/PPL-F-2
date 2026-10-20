@@ -186,4 +186,6 @@ Authorization: Bearer <token_simulasi>
 
 * **M. Haekal Al-Ghazy**
 
-* **Tim Kelompok 2 Kelas F**
+* **Asep Saepul Milah**
+  
+* **Ade Rizqy Maulana**
