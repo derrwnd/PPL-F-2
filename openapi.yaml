@@ -1,0 +1,284 @@
+openapi: 3.0.3
+info:
+  title: API Master SDM dan Tenaga Ahli (Modul F-2)
+  description: Kontrak spesifikasi API resmi F-2 untuk ERP PT Anaheim Nimbus Universal.
+  version: 1.1.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Server Lokal Backend F-2
+
+paths:
+  /sdm:
+    get:
+      summary: Ambil Daftar SDM
+      tags:
+        - Profil SDM
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil mengambil daftar SDM.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SDMProfile'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+
+    post:
+      summary: Tambah Profil SDM Baru
+      tags:
+        - Profil SDM
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nomorPegawai
+                - namaLengkap
+                - jabatanId
+                - statusKerja
+              properties:
+                nomorPegawai:
+                  type: string
+                  example: SDM-2026-003
+                namaLengkap:
+                  type: string
+                  example: Bagus Pratama
+                jabatanId:
+                  type: string
+                  format: uuid
+                  example: 01929b4a-83a1-7d55-8b12-9f7c2e4a6b10
+                statusKerja:
+                  type: string
+                  enum: [karyawan, kontrak, tenaga_ahli]
+                  example: tenaga_ahli
+                email:
+                  type: string
+                  format: email
+                  example: bagus.pratama@example.com
+                nomorTelepon:
+                  type: string
+                  example: "081200000003"
+                alamat:
+                  type: string
+                  example: Surabaya
+      responses:
+        '201':
+          description: Profil SDM berhasil dibuat.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SDMProfile'
+        '409':
+          description: Konflik duplikasi NIP / nomorPegawai.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 409
+                message: Nomor identitas internal sudah digunakan.
+        '422':
+          description: Field wajib belum diisi.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 422
+                message: Field wajib belum diisi.
+
+  /sdm/{employeeId}:
+    parameters:
+      - name: employeeId
+        in: path
+        required: true
+        description: Primary key SDM berformat UUID v7.
+        schema:
+          type: string
+          format: uuid
+          example: 01a159c0-5287-7e9a-9eb2-613346fdc4ff
+
+    get:
+      summary: Ambil Detail Profil SDM
+      tags:
+        - Profil SDM
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Detail profil SDM ditemukan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SDMProfile'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+    patch:
+      summary: Ubah Data Profil SDM
+      tags:
+        - Profil SDM
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                namaLengkap:
+                  type: string
+                  example: Dewi Sartika M.Si.
+                statusKerja:
+                  type: string
+                  enum: [karyawan, kontrak, tenaga_ahli]
+                  example: kontrak
+                email:
+                  type: string
+                nomorTelepon:
+                  type: string
+                alamat:
+                  type: string
+      responses:
+        '200':
+          description: Profil SDM berhasil terbarui.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SDMProfile'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /referensi/sdm/{employeeId}:
+    get:
+      summary: Ambil Data Referensi SDM Antarmodul (Dikosumsi oleh F-1)
+      tags:
+        - Referensi Antarmodul
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: 01929b4a-5f10-7a22-9d44-3c8f1b2e7a90
+      responses:
+        '200':
+          description: Referensi SDM berhasil diambil (bebas data sensitif).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SDMReference'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    SDMProfile:
+      type: object
+      properties:
+        employeeId:
+          type: string
+          format: uuid
+          example: 01a159c0-5287-7e9a-9eb2-613346fdc4ff
+        nomorPegawai:
+          type: string
+          example: SDM-2026-004
+        namaLengkap:
+          type: string
+          example: Dewi Sartika
+        jabatanId:
+          type: string
+          format: uuid
+          example: 01929b4a-83a1-7d55-8b12-9f7c2e4a6b10
+        namaJabatan:
+          type: string
+          example: Senior Specialist
+        statusKerja:
+          type: string
+          example: karyawan
+        email:
+          type: string
+          example: dewi.sartika@example.com
+        nomorTelepon:
+          type: string
+          example: "081200000004"
+        alamat:
+          type: string
+          example: Semarang
+        dibuatPada:
+          type: string
+          format: date-time
+          example: "2026-10-27T10:00:00Z"
+
+    SDMReference:
+      type: object
+      properties:
+        employeeId:
+          type: string
+          format: uuid
+          example: 01929b4a-5f10-7a22-9d44-3c8f1b2e7a90
+        nomorPegawai:
+          type: string
+          example: SDM-2026-001
+        namaLengkap:
+          type: string
+          example: Sandy Walsh
+        jabatanId:
+          type: string
+          format: uuid
+          example: 01929b4a-83a1-7d55-8b12-9f7c2e4a6b10
+        namaJabatan:
+          type: string
+          example: Project Manager
+        statusKerja:
+          type: string
+          example: karyawan
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Pesan kesalahan validasi.
+
+  responses:
+    401Unauthorized:
+      description: Sesi tidak valid atau token tidak dikirim.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 401
+            message: Sesi berakhir atau token tidak ditemukan.
+
+    404NotFound:
+      description: Objek tidak ditemukan.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 404
+            message: Profil SDM tidak ditemukan.
