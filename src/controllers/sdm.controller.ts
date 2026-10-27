@@ -101,6 +101,29 @@ export const getDetailSDM = (req: AuthenticatedRequest, res: Response) => {
   return res.status(200).json(profil);
 };
 
+// PATCH /api/v1/sdm/:employeeId (Ubah Profil SDM)
+export const ubahSDM = (req: AuthenticatedRequest, res: Response) => {
+  const { employeeId } = req.params;
+  const { namaLengkap, statusKerja, email, nomorTelepon, alamat } = req.body;
+
+  const profilIndex = sdmDatabase.findIndex(item => item.employeeId === employeeId);
+  if (profilIndex === -1) {
+    return res.status(404).json({ code: 404, message: 'Profil SDM tidak ditemukan.' });
+  }
+
+  // Update field yang diizinkan (employeeId dan nomorPegawai tidak boleh diubah)
+  sdmDatabase[profilIndex] = {
+    ...sdmDatabase[profilIndex],
+    ...(namaLengkap && { namaLengkap }),
+    ...(statusKerja && { statusKerja }),
+    ...(email !== undefined && { email }),
+    ...(nomorTelepon !== undefined && { nomorTelepon }),
+    ...(alamat !== undefined && { alamat })
+  };
+
+  return res.status(200).json(sdmDatabase[profilIndex]);
+};
+
 // GET /api/v1/referensi/sdm/:employeeId (API-K02-17 untuk Sinkronisasi F-1)
 export const getReferensiSDMDetail = (req: AuthenticatedRequest, res: Response) => {
   const { employeeId } = req.params;

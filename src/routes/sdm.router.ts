@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDaftarSDM, tambahSDM, getDetailSDM, getReferensiSDMDetail } from '../controllers/sdm.controller';
+import { getDaftarSDM, tambahSDM, getDetailSDM, ubahSDM, getReferensiSDMDetail } from '../controllers/sdm.controller';
 import { authenticateToken, requireCOOOrAdmin } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -11,6 +11,7 @@ router.use(authenticateToken);
 router.get('/sdm', requireCOOOrAdmin, getDaftarSDM);
 router.post('/sdm', requireCOOOrAdmin, tambahSDM);
 router.get('/sdm/:employeeId', getDetailSDM); // Mendukung COO, Admin, dan Self-Service
+router.patch('/sdm/:employeeId', requireCOOOrAdmin, ubahSDM);
 
 // Rute Referensi Antarmodul (F-1 / Modul Lain)
 router.get('/referensi/sdm/:employeeId', getReferensiSDMDetail);
