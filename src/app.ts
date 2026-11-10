@@ -5,6 +5,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import sdmRouter from './routes/sdm.router';
+import path from 'path';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -12,6 +13,7 @@ const PORT = process.env.PORT || 8080;
 // 2. Global Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.urlencoded({ extended: true }));
 
 // 3. Health Check / Root Endpoint

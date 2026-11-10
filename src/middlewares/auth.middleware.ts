@@ -20,15 +20,34 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
   }
 
   const token = authHeader.split(' ')[1];
-  const secret = process.env.JWT_SECRET;
 
+  // A. SIMULASI / MOCK TOKEN (Untuk Demo Frontend UI & Pengujian Lokal)
+  if (token === 'token-coo') {
+    req.user = {
+      akunId: '01929b4a-83a1-7d55-8b12-9f7c2e4a6b10',
+      employeeId: '01929b4a-5f10-7a22-9d44-3c8f1b2e7a90',
+      kodePeran: 'COO'
+    };
+    return next();
+  }
+
+  if (token === 'token-karyawan') {
+    req.user = {
+      akunId: '01929b4a-9999-7d55-8b12-9f7c2e4a6b99',
+      employeeId: '01a1598a-6356-7933-8239-589944b35d30',
+      kodePeran: 'KARYAWAN'
+    };
+    return next();
+  }
+
+  // B. VERIFIKASI TOKEN JWT SUNGGUHAN DARI F-1
+  const secret = process.env.JWT_SECRET;
   if (!secret) {
     console.error('CRITICAL: JWT_SECRET belum dikonfigurasi di file .env');
     return res.status(500).json({ code: 500, message: 'Kesalahan konfigurasi server.' });
   }
 
   try {
-    // Verifikasi token JWT menggunakan secret dari .env
     const decoded = jwt.verify(token, secret) as UserPayload;
     req.user = decoded;
     next();
