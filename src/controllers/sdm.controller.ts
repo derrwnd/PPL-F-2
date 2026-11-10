@@ -2,7 +2,23 @@ import { Response } from 'express';
 import { uuidv7 } from 'uuidv7';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
-const sdmDatabase: any[] = [
+export interface SDMItem {
+  employeeId: string;
+  nomorPegawai: string;
+  namaLengkap: string;
+  jabatanId: string;
+  namaJabatan?: string;
+  statusKerja: string;
+  email: string | null;
+  nomorTelepon: string | null;
+  alamat: string | null;
+  rekeningDanBPJS?: string;
+  dokumenIdentitas?: string;
+  dibuatPada: string;
+}
+
+// In-memory Database dengan Type Definition
+const sdmDatabase: SDMItem[] = [
   {
     employeeId: '01929b4a-5f10-7a22-9d44-3c8f1b2e7a90',
     nomorPegawai: 'SDM-2026-001',
@@ -29,19 +45,34 @@ const sdmDatabase: any[] = [
   }
 ];
 
-// GET /api/v1/sdm (Cari & Daftar Profil)
+// GET /api/v1/sdm (Cari & Daftar Profil dengan Filter & Paginasi)
 export const getDaftarSDM = (req: AuthenticatedRequest, res: Response) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 20;
+  const searchQuery = (req.query.q as string || '').toLowerCase();
+
+  let filteredData = sdmDatabase;
+  if (searchQuery) {
+    filteredData = sdmDatabase.filter(item => 
+      item.namaLengkap.toLowerCase().includes(searchQuery) ||
+      item.nomorPegawai.toLowerCase().includes(searchQuery)
+    );
+  }
+
+  const startIndex = (page - 1) * limit;
+  const paginatedItems = filteredData.slice(startIndex, startIndex + limit);
+
   return res.status(200).json({
-    items: sdmDatabase,
-    page: 1,
-    limit: 20,
-    total: sdmDatabase.length
+    items: paginatedItems,
+    page,
+    limit,
+    total: filteredData.length
   });
 };
 
 // POST /api/v1/sdm (Tambah Profil)
 export const tambahSDM = (req: AuthenticatedRequest, res: Response) => {
-  const { nomorPegawai, namaLengkap, jabatanId, statusKerja, email, nomorTelepon, alamat } = req.body;
+  const { nomorPegawai, namaLengkap, jabatanId, namaJabatan, statusKerja, email, nomorTelepon, alamat } = req.body;
 
   if (!nomorPegawai || !namaLengkap || !jabatanId || !statusKerja) {
     return res.status(422).json({ code: 422, message: 'Field wajib belum diisi.' });
@@ -52,11 +83,12 @@ export const tambahSDM = (req: AuthenticatedRequest, res: Response) => {
     return res.status(409).json({ code: 409, message: 'Nomor identitas internal sudah digunakan.' });
   }
 
-  const newProfil = {
+  const newProfil: SDMItem = {
     employeeId: uuidv7(),
     nomorPegawai,
     namaLengkap,
     jabatanId,
+    namaJabatan: namaJabatan || 'Staf Operational',
     statusKerja,
     email: email || null,
     nomorTelepon: nomorTelepon || null,
@@ -71,29 +103,30 @@ export const tambahSDM = (req: AuthenticatedRequest, res: Response) => {
 // GET /api/v1/sdm/:employeeId (Detail Profil + Proteksi Data Sensitif)
 export const getDetailSDM = (req: AuthenticatedRequest, res: Response) => {
   const { employeeId } = req.params;
-  const currentUser = req.user!;
+  const currentUser = req.user;
+
+  if (!currentUser) {
+    return res.status(401).json({ code: 401, message: 'Sesi pengguna tidak valid.' });
+  }
 
   const profil = sdmDatabase.find(item => item.employeeId === employeeId);
   if (!profil) {
     return res.status(404).json({ code: 404, message: 'Profil SDM tidak ditemukan.' });
   }
 
+  const roleUpper = currentUser.kodePeran?.toUpperCase();
   const isOwner = currentUser.employeeId === employeeId;
-  const isManager = currentUser.kodePeran === 'COO' || currentUser.kodePeran === 'ADMIN';
+  const isManager = roleUpper === 'COO' || roleUpper === 'ADMIN';
 
-  // Jika bukan COO/Admin dan bukan pemilik profil sendiri
   if (!isManager && !isOwner) {
     return res.status(403).json({ code: 403, message: 'Anda tidak memiliki izin mengakses profil ini.' });
   }
 
-  // Jika pemilik profil sendiri (bukan COO/Admin), samarkan data sensitif
+  // Jika pemilik profil sendiri (bukan COO/Admin), samarkan data finansial & dokumen identitas
   if (isOwner && !isManager) {
     return res.status(200).json({
       ...profil,
-      email: profil.email,
-      nomorTelepon: profil.nomorTelepon,
-      alamat: profil.alamat,
-      rekeningDanBPJS: '•••• •••• ••••', // Disamarkan untuk self-service
+      rekeningDanBPJS: '•••• •••• ••••',
       dokumenIdentitas: '••••••••'
     });
   }
@@ -101,24 +134,48 @@ export const getDetailSDM = (req: AuthenticatedRequest, res: Response) => {
   return res.status(200).json(profil);
 };
 
-// PATCH /api/v1/sdm/:employeeId (Ubah Profil SDM)
+// PATCH /api/v1/sdm/:employeeId (Ubah Profil SDM dengan Pengecekan Otorisasi)
 export const ubahSDM = (req: AuthenticatedRequest, res: Response) => {
   const { employeeId } = req.params;
-  const { namaLengkap, statusKerja, email, nomorTelepon, alamat } = req.body;
+  const currentUser = req.user;
+  const { namaLengkap, jabatanId, namaJabatan, statusKerja, email, nomorTelepon, alamat } = req.body;
+
+  if (!currentUser) {
+    return res.status(401).json({ code: 401, message: 'Sesi pengguna tidak valid.' });
+  }
 
   const profilIndex = sdmDatabase.findIndex(item => item.employeeId === employeeId);
   if (profilIndex === -1) {
     return res.status(404).json({ code: 404, message: 'Profil SDM tidak ditemukan.' });
   }
 
-  // Update field yang diizinkan (employeeId dan nomorPegawai tidak boleh diubah)
-  sdmDatabase[profilIndex] = {
-    ...sdmDatabase[profilIndex],
+  const roleUpper = currentUser.kodePeran?.toUpperCase();
+  const isOwner = currentUser.employeeId === employeeId;
+  const isManager = roleUpper === 'COO' || roleUpper === 'ADMIN';
+
+  // Proteksi Hak Akses Ubah Data
+  if (!isManager && !isOwner) {
+    return res.status(403).json({ code: 403, message: 'Anda tidak memiliki izin mengedit profil ini.' });
+  }
+
+  // Jika Owner (bukan Manager), batasi pengubahan status kerja / jabatan
+  const updatePayload: Partial<SDMItem> = {
     ...(namaLengkap && { namaLengkap }),
-    ...(statusKerja && { statusKerja }),
     ...(email !== undefined && { email }),
     ...(nomorTelepon !== undefined && { nomorTelepon }),
     ...(alamat !== undefined && { alamat })
+  };
+
+  // Hanya Manager (COO/Admin) yang dapat mengubah status kerja & jabatan
+  if (isManager) {
+    if (statusKerja) updatePayload.statusKerja = statusKerja;
+    if (jabatanId) updatePayload.jabatanId = jabatanId;
+    if (namaJabatan) updatePayload.namaJabatan = namaJabatan;
+  }
+
+  sdmDatabase[profilIndex] = {
+    ...sdmDatabase[profilIndex],
+    ...updatePayload
   };
 
   return res.status(200).json(sdmDatabase[profilIndex]);
@@ -130,16 +187,15 @@ export const getReferensiSDMDetail = (req: AuthenticatedRequest, res: Response) 
 
   const profil = sdmDatabase.find(item => item.employeeId === employeeId);
   if (!profil) {
-    return res.status(404).json({ code: 404, message: 'EMPLOYEE_NOT_FOUND' });
+    return res.status(404).json({ code: 404, message: 'Profil SDM tidak ditemukan.' });
   }
 
-  // Kembalikan hanya data referensi aman (tanpa kontak/sensitif)
   return res.status(200).json({
     employeeId: profil.employeeId,
     nomorPegawai: profil.nomorPegawai,
     namaLengkap: profil.namaLengkap,
     jabatanId: profil.jabatanId,
-    namaJabatan: profil.namaJabatan || 'Project Manager',
+    namaJabatan: profil.namaJabatan || 'Staf Operational',
     statusKerja: profil.statusKerja
   });
 };
